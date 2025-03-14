@@ -10,4 +10,19 @@ public class Artiste
     this.nom = nom;
     this.categorie = categorie;
   }
+
+  public int getId()
+  {
+    return id;
+  }
+
+  public String getNom()
+  {
+    return nom;
+  }
+
+  public String getCategorie()
+  {
+    return categorie;
+  }
 }

@@ -10,4 +10,19 @@ public class Mention
     this.artisteArrivee = artisteArrivee;
     this.nbMentions = nbMentions;
   }
+
+  public Artiste getArtisteDepart()
+  {
+    return artisteDepart;
+  }
+
+  public Artiste getArtisteArrivee()
+  {
+    return artisteArrivee;
+  }
+
+  public int getNbMentions()
+  {
+    return nbMentions;
+  }
 }
