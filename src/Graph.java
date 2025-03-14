@@ -10,7 +10,8 @@ import java.util.stream.Stream;
 public class Graph
 {
 
-  HashMap<Integer, Artiste> idToArtistes;
+  HashMap<String, Artiste> nomToArtiste;
+  HashMap<Integer, Artiste> idToArtiste;
   HashMap<Integer, Set<Mention>> artisteToMentions;
 
   public Graph(String fichierArtists, String fichierMentions)
@@ -21,7 +22,8 @@ public class Graph
 
   private void initArtistes(String fichierArtists)
   {
-    this.idToArtistes = new HashMap<>();
+    this.idToArtiste = new HashMap<>();
+    this.nomToArtiste = new HashMap<>();
 
     Path filePath = Path.of(fichierArtists);
 
@@ -32,8 +34,10 @@ public class Graph
           .filter(parts -> parts.length == 3)
           .forEach(parts -> {
             int id = Integer.parseInt(parts[0]);
-            Artiste artiste = new Artiste(id, parts[1], parts[2]);
-            idToArtistes.put(id, artiste);
+            String name = parts[1];
+            Artiste artiste = new Artiste(id, name, parts[2]);
+            idToArtiste.put(id, artiste);
+            nomToArtiste.put(name, artiste);
           });
     } catch (IOException e)
     {
@@ -61,8 +65,8 @@ public class Graph
             artisteToMentions.putIfAbsent(idArtisteDepart, new HashSet<>());
             Set<Mention> ensembleArtiste = artisteToMentions.get(idArtisteDepart);
 
-            Artiste artisteDepart = idToArtistes.get(idArtisteDepart);
-            Artiste artisteArrivee = idToArtistes.get(idArtisteArrivee);
+            Artiste artisteDepart = idToArtiste.get(idArtisteDepart);
+            Artiste artisteArrivee = idToArtiste.get(idArtisteArrivee);
             ensembleArtiste.add(new Mention(artisteDepart, artisteArrivee, nbMentions));
           });
     } catch (IOException e)
@@ -71,13 +75,17 @@ public class Graph
     }
   }
 
-  public void trouverCheminLePlusCourt(String artists1, String artists2)
+  public void trouverCheminLePlusCourt(String nomArtisteDepart, String nomArtisteArrivee)
   {
+    Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
+    Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
     return;
   }
 
-  public void trouverCheminMaxMentions(String artists1, String artists2)
+  public void trouverCheminMaxMentions(String nomArtisteDepart, String nomArtisteArrivee)
   {
+    Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
+    Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
     return;
   }
 }
