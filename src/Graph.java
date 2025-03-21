@@ -80,7 +80,7 @@ public class Graph
 
     Deque<Artiste> queue = new LinkedList<>();
     Set<Artiste> visited = new HashSet<>();
-    Map<Artiste, Artiste> predecesseur = new HashMap<>();
+    Map<Artiste, Artiste> arriveeToDepart = new HashMap<>();
 
     queue.add(artisteDepart);
     visited.add(artisteDepart);
@@ -102,13 +102,13 @@ public class Graph
         if (!visited.contains(voisin))
         {
           visited.add(voisin);
-          predecesseur.put(voisin, courant);
+          arriveeToDepart.put(voisin, courant);
           queue.add(voisin);
         }
       }
     }
 
-    if (!predecesseur.containsKey(artisteArrivee))
+    if (!arriveeToDepart.containsKey(artisteArrivee))
     {
       throw new RuntimeException(
           "Aucun chemin entre " + nomArtisteDepart + " et " + nomArtisteArrivee);
@@ -119,7 +119,7 @@ public class Graph
     while (courant != null && !courant.equals(artisteDepart))
     {
       chemin.addFirst(courant);
-      courant = predecesseur.get(courant);
+      courant = arriveeToDepart.get(courant);
     }
     chemin.addFirst(artisteDepart);
 
