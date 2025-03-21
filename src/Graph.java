@@ -2,9 +2,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class Graph
@@ -75,12 +73,80 @@ public class Graph
     }
   }
 
-  public void trouverCheminLePlusCourt(String nomArtisteDepart, String nomArtisteArrivee)
-  {
-    Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
-    Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
-    return;
-  }
+    public void trouverCheminLePlusCourt(String nomArtisteDepart, String nomArtisteArrivee) {
+        Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
+        Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
+
+        if (artisteDepart == null || artisteArrivee == null) {
+            throw new RuntimeException("Artiste non trouvé.");
+        }
+
+        Queue<Artiste> queue = new LinkedList<>();
+        Set<Artiste> visited = new HashSet<>();
+        Map<Artiste, Artiste> predecesseur = new HashMap<>();
+
+        queue.add(artisteDepart);
+        visited.add(artisteDepart);
+
+        while (!queue.isEmpty()) {
+            Artiste courant = queue.poll();
+
+            if (courant.equals(artisteArrivee)) {
+                break;
+            }
+
+            Set<Mention> voisins = artisteToMentions.getOrDefault(courant.getId(), new HashSet<>());
+
+            for (Mention mention : voisins) {
+                Artiste voisin = mention.getArtisteArrivee();
+                if (!visited.contains(voisin)) {
+                    visited.add(voisin);
+                    predecesseur.put(voisin, courant);
+                    queue.add(voisin);
+                }
+            }
+        }
+
+        // Si on ne trouve pas le chemin
+        if (!predecesseur.containsKey(artisteArrivee)) {
+            throw new RuntimeException("Aucun chemin entre " + nomArtisteDepart + " et " + nomArtisteArrivee);
+        }
+
+        // Reconstruire le chemin
+        List<Artiste> chemin = new LinkedList<>();
+        Artiste courant = artisteArrivee;
+        while (courant != null && !courant.equals(artisteDepart)) {
+            chemin.add(0, courant);
+            courant = predecesseur.get(courant);
+        }
+        chemin.add(0, artisteDepart);
+
+        // Affichage
+        System.out.println("Longueur du chemin : " + (chemin.size() - 1));
+        System.out.println("Coût total du chemin : " + calculerCout(chemin));
+        System.out.print("Chemin : ");
+        for (Artiste artiste : chemin) {
+            System.out.print(artiste.getNom() + " (" + artiste.getCategorie() + ") ");
+        }
+        System.out.println();
+    }
+
+    // Méthode pour calculer le coût total (somme des poids = 1 / nbMentions)
+    private double calculerCout(List<Artiste> chemin) {
+        double cout = 0.0;
+        for (int i = 0; i < chemin.size() - 1; i++) {
+            Artiste from = chemin.get(i);
+            Artiste to = chemin.get(i + 1);
+            Set<Mention> mentions = artisteToMentions.get(from.getId());
+            for (Mention mention : mentions) {
+                if (mention.getArtisteArrivee().equals(to)) {
+                    cout += 1.0 / mention.getNbMentions();
+                    break;
+                }
+            }
+        }
+        return cout;
+    }
 
   public void trouverCheminMaxMentions(String nomArtisteDepart, String nomArtisteArrivee)
   {
