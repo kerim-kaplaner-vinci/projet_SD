@@ -2,31 +2,35 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Stream;
 
-public class Graph
-{
+public class Graph {
 
   HashMap<String, Artiste> nomToArtiste;
   HashMap<Integer, Artiste> idToArtiste;
   HashMap<Integer, Set<Mention>> artisteToMentions;
 
-  public Graph(String fichierArtists, String fichierMentions)
-  {
+  public Graph(String fichierArtists, String fichierMentions) {
     initArtistes(fichierArtists);
     initMentions(fichierMentions);
   }
 
-  private void initArtistes(String fichierArtists)
-  {
+  private void initArtistes(String fichierArtists) {
     this.idToArtiste = new HashMap<>();
     this.nomToArtiste = new HashMap<>();
 
     Path filePath = Path.of(fichierArtists);
-
-    try (Stream<String> lines = Files.lines(filePath, Charset.forName("Windows-1252")))
-    {
+    try (Stream<String> lines = Files.lines(filePath, Charset.forName("Windows-1252"))) {
       lines
           .map(line -> line.split(","))
           .filter(parts -> parts.length == 3)
@@ -37,21 +41,17 @@ public class Graph
             idToArtiste.put(id, artiste);
             nomToArtiste.put(name, artiste);
           });
-    } catch (IOException e)
-    {
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
   }
 
-  private void initMentions(String fichierMentions)
-  {
+  private void initMentions(String fichierMentions) {
     this.artisteToMentions = new HashMap<>();
 
     Path filePath = Path.of(fichierMentions);
-
-    try (Stream<String> lines = Files.lines(filePath, Charset.forName("Windows-1252")))
-    {
+    try (Stream<String> lines = Files.lines(filePath, Charset.forName("Windows-1252"))) {
       lines
           .map(line -> line.split(","))
           .filter(parts -> parts.length == 3)
@@ -67,90 +67,108 @@ public class Graph
             Artiste artisteArrivee = idToArtiste.get(idArtisteArrivee);
             ensembleArtiste.add(new Mention(artisteDepart, artisteArrivee, nbMentions));
           });
-    } catch (IOException e)
-    {
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  public void trouverCheminLePlusCourt(String nomArtisteDepart, String nomArtisteArrivee)
-  {
+  public void trouverCheminLePlusCourt(String nomArtisteDepart, String nomArtisteArrivee) {
     Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
     Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
 
-    Deque<Artiste> queue = new LinkedList<>();
-    Set<Artiste> visited = new HashSet<>();
+    Deque<Artiste> fileArtistes = new LinkedList<>();
     Map<Artiste, Artiste> arriveeToDepart = new HashMap<>();
+    fileArtistes.add(artisteDepart);
+    arriveeToDepart.put(artisteDepart, null);
 
-    queue.add(artisteDepart);
-    visited.add(artisteDepart);
-
-    while (!queue.isEmpty())
-    {
-      Artiste courant = queue.poll();
-
-      if (courant.equals(artisteArrivee))
-      {
+    while (!fileArtistes.isEmpty()) {
+      Artiste courant = fileArtistes.poll();
+      if (courant.equals(artisteArrivee)) {
         break;
       }
 
-      Set<Mention> voisins = artisteToMentions.getOrDefault(courant.getId(), new HashSet<>());
-
-      for (Mention mention : voisins)
-      {
+      for (Mention mention : artisteToMentions.getOrDefault(courant.getId(),
+          Collections.emptySet())) {
         Artiste voisin = mention.getArtisteArrivee();
-        if (!visited.contains(voisin))
-        {
-          visited.add(voisin);
+        if (!arriveeToDepart.containsKey(voisin)) {
           arriveeToDepart.put(voisin, courant);
-          queue.add(voisin);
+          fileArtistes.add(voisin);
         }
       }
     }
 
-    if (!arriveeToDepart.containsKey(artisteArrivee))
-    {
+    throwsError(nomArtisteDepart, nomArtisteArrivee, artisteArrivee, arriveeToDepart);
+  }
+
+
+  public void trouverCheminMaxMentions(String nomArtisteDepart, String nomArtisteArrivee) {
+    Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
+    Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
+
+    Map<Artiste, Double> maxMentions = new HashMap<>();
+    Map<Artiste, Artiste> arriveeToDepart = new HashMap<>();
+    PriorityQueue<Artiste> fileTrieeArtistes = new PriorityQueue<>(
+        Comparator.comparingDouble(
+            (Artiste a) -> -maxMentions.getOrDefault(a, Double.NEGATIVE_INFINITY))
+    );
+
+    maxMentions.put(artisteDepart, 0.0);
+    fileTrieeArtistes.add(artisteDepart);
+
+    while (!fileTrieeArtistes.isEmpty()) {
+      Artiste courant = fileTrieeArtistes.poll();
+
+      for (Mention mention : artisteToMentions.getOrDefault(courant.getId(),
+          Collections.emptySet())) {
+        Artiste voisin = mention.getArtisteArrivee();
+        double score = maxMentions.get(courant) + 1.0 / mention.getNbMentions();
+
+        if (score > maxMentions.getOrDefault(voisin, 0.0)) {
+          maxMentions.put(voisin, score);
+          arriveeToDepart.put(voisin, courant);
+          fileTrieeArtistes.add(voisin);
+        }
+      }
+    }
+
+    throwsError(nomArtisteDepart, nomArtisteArrivee, artisteArrivee, arriveeToDepart);
+  }
+
+  private void throwsError(String nomArtisteDepart, String nomArtisteArrivee,
+      Artiste artisteArrivee, Map<Artiste, Artiste> arriveeToDepart) {
+    if (!arriveeToDepart.containsKey(artisteArrivee)) {
       throw new RuntimeException(
           "Aucun chemin entre " + nomArtisteDepart + " et " + nomArtisteArrivee);
     }
 
-    List<Artiste> chemin = new LinkedList<>();
-    Artiste courant = artisteArrivee;
-    while (courant != null && !courant.equals(artisteDepart))
-    {
-      chemin.addFirst(courant);
-      courant = arriveeToDepart.get(courant);
+    LinkedList<Artiste> chemin = new LinkedList<>();
+
+    for (Artiste at = artisteArrivee; at != null; at = arriveeToDepart.get(at)) {
+      chemin.addFirst(at);
     }
-    chemin.addFirst(artisteDepart);
 
     afficher(chemin);
   }
 
-  private void afficher(List<Artiste> chemin)
-  {
+  private void afficher(LinkedList<Artiste> chemin) {
     System.out.println("Longueur du chemin : " + (chemin.size() - 1));
     System.out.println("Coût total du chemin : " + calculerCout(chemin));
     System.out.print("Chemin :\n");
-    for (Artiste artiste : chemin)
-    {
+    for (Artiste artiste : chemin) {
       System.out.print(
           artiste.getId() + ": " + artiste.getNom() + " (" + artiste.getCategorie() + ")\n");
     }
     System.out.println();
   }
 
-  private double calculerCout(List<Artiste> chemin)
-  {
+  private double calculerCout(LinkedList<Artiste> chemin) {
     double cout = 0.0;
-    for (int i = 0; i < chemin.size() - 1; i++)
-    {
+    for (int i = 0; i < chemin.size() - 1; i++) {
       Artiste from = chemin.get(i);
       Artiste to = chemin.get(i + 1);
       Set<Mention> mentions = artisteToMentions.get(from.getId());
-      for (Mention mention : mentions)
-      {
-        if (mention.getArtisteArrivee().equals(to))
-        {
+      for (Mention mention : mentions) {
+        if (mention.getArtisteArrivee().equals(to)) {
           System.out.println(from.getNom() + " - " + to.getNom() + " = " + cout);
           cout += 1.0 / mention.getNbMentions();
           break;
@@ -158,12 +176,5 @@ public class Graph
       }
     }
     return cout;
-  }
-
-  public void trouverCheminMaxMentions(String nomArtisteDepart, String nomArtisteArrivee)
-  {
-    Artiste artisteDepart = nomToArtiste.get(nomArtisteDepart);
-    Artiste artisteArrivee = nomToArtiste.get(nomArtisteArrivee);
-    return;
   }
 }
