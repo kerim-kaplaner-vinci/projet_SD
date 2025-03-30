@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -19,6 +18,7 @@ public class Graph {
   HashMap<String, Artiste> nomToArtiste;
   HashMap<Integer, Artiste> idToArtiste;
   HashMap<Integer, Set<Mention>> artisteToMentions;
+  private static final double SCORE_INEXISTANT = -1.0;
 
   public Graph(String fichierArtists, String fichierMentions) {
     initArtistes(fichierArtists);
@@ -97,7 +97,7 @@ public class Graph {
       }
     }
 
-    throwsError(nomArtisteDepart, nomArtisteArrivee, artisteArrivee, arriveeToDepart);
+    reconstruireEtAfficherChemin(artisteDepart, artisteArrivee, arriveeToDepart);
   }
 
 
@@ -107,43 +107,56 @@ public class Graph {
 
     Map<Artiste, Double> maxMentions = new HashMap<>();
     Map<Artiste, Artiste> arriveeToDepart = new HashMap<>();
-    PriorityQueue<Artiste> fileTrieeArtistes = new PriorityQueue<>(
+    Set<Artiste> dejaVisites = new HashSet<>();
+
+    PriorityQueue<Noeud> fileTrieeArtistes = new PriorityQueue<>(
         Comparator.comparingDouble(
-            (Artiste a) -> -maxMentions.getOrDefault(a, Double.NEGATIVE_INFINITY))
+            (Noeud n) -> -n.score)
     );
 
     maxMentions.put(artisteDepart, 0.0);
-    fileTrieeArtistes.add(artisteDepart);
+    fileTrieeArtistes.add(new Noeud(artisteDepart, 0.0));
 
     while (!fileTrieeArtistes.isEmpty()) {
-      Artiste courant = fileTrieeArtistes.poll();
+      Noeud nCourant = fileTrieeArtistes.poll();
+      Artiste aCourant = nCourant.artiste;
 
-      for (Mention mention : artisteToMentions.getOrDefault(courant.getId(),
+      if (!dejaVisites.add(aCourant)) {
+        continue;
+      }
+
+      for (Mention mention : artisteToMentions.getOrDefault(aCourant.getId(),
           Collections.emptySet())) {
         Artiste voisin = mention.getArtisteArrivee();
-        double score = maxMentions.get(courant) + 1.0 / mention.getNbMentions();
 
-        if (score > maxMentions.getOrDefault(voisin, 0.0)) {
-          maxMentions.put(voisin, score);
-          arriveeToDepart.put(voisin, courant);
-          fileTrieeArtistes.add(voisin);
+        if (dejaVisites.contains(voisin)) {
+          continue;
+        }
+
+        double nvScore = maxMentions.get(aCourant) + 1.0 / mention.getNbMentions();
+        double scoreActuelVoisin = maxMentions.getOrDefault(voisin, SCORE_INEXISTANT);
+
+        if (nvScore > scoreActuelVoisin) {
+          maxMentions.put(voisin, nvScore);
+          arriveeToDepart.put(voisin, aCourant);
+          fileTrieeArtistes.add(new Noeud(voisin, nvScore));
         }
       }
     }
 
-    throwsError(nomArtisteDepart, nomArtisteArrivee, artisteArrivee, arriveeToDepart);
+    reconstruireEtAfficherChemin(artisteDepart, artisteArrivee, arriveeToDepart);
   }
 
-  private void throwsError(String nomArtisteDepart, String nomArtisteArrivee,
-      Artiste artisteArrivee, Map<Artiste, Artiste> arriveeToDepart) {
-    if (!arriveeToDepart.containsKey(artisteArrivee)) {
+  private void reconstruireEtAfficherChemin(
+      Artiste depart, Artiste arrivee, Map<Artiste, Artiste> arriveeToDepart
+  ) {
+    if (!arriveeToDepart.containsKey(arrivee)) {
       throw new RuntimeException(
-          "Aucun chemin entre " + nomArtisteDepart + " et " + nomArtisteArrivee);
+          "Aucun chemin entre " + depart.getNom() + " et " + arrivee.getNom());
     }
 
     LinkedList<Artiste> chemin = new LinkedList<>();
-
-    for (Artiste at = artisteArrivee; at != null; at = arriveeToDepart.get(at)) {
+    for (Artiste at = arrivee; at != null; at = arriveeToDepart.get(at)) {
       chemin.addFirst(at);
     }
 
@@ -156,7 +169,7 @@ public class Graph {
     System.out.print("Chemin :\n");
     for (Artiste artiste : chemin) {
       System.out.print(
-          artiste.getId() + ": " + artiste.getNom() + " (" + artiste.getCategorie() + ")\n");
+          artiste.getNom() + " (" + artiste.getCategorie() + ")\n");
     }
     System.out.println();
   }
@@ -166,15 +179,30 @@ public class Graph {
     for (int i = 0; i < chemin.size() - 1; i++) {
       Artiste from = chemin.get(i);
       Artiste to = chemin.get(i + 1);
-      Set<Mention> mentions = artisteToMentions.get(from.getId());
-      for (Mention mention : mentions) {
-        if (mention.getArtisteArrivee().equals(to)) {
-          System.out.println(from.getNom() + " - " + to.getNom() + " = " + cout);
-          cout += 1.0 / mention.getNbMentions();
-          break;
-        }
+
+      Mention mentionTrouvee = artisteToMentions
+          .getOrDefault(from.getId(), Collections.emptySet())
+          .stream()
+          .filter(m -> m.getArtisteArrivee().equals(to))
+          .findFirst()
+          .orElse(null);
+
+      if (mentionTrouvee == null) {
+        throw new IllegalStateException();
       }
+      cout += 1.0 / mentionTrouvee.getNbMentions();
     }
     return cout;
+  }
+
+  private static class Noeud {
+
+    Artiste artiste;
+    double score;
+
+    Noeud(Artiste artiste, double score) {
+      this.artiste = artiste;
+      this.score = score;
+    }
   }
 }
